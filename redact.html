@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Private Redaction</title>
+  <link rel="stylesheet" href="redact.css" />
+</head>
+<body>
+  <header>
+    <span class="dot"></span>
+    <strong>Private Redaction</strong>
+    <span class="sub">runs in your browser · nothing uploaded</span>
+  </header>
+
+  <div id="status" class="status">Loading…</div>
+
+  <!-- IMAGE / SCREENSHOT MODE -->
+  <section id="imageMode" class="hidden">
+    <div class="panel">
+      <p class="lbl">Auto-detect looks for:</p>
+      <div id="chips" class="chips"></div>
+      <div class="row">
+        <input id="term" type="text" placeholder="Add a specific word or number (e.g. an account number)" />
+        <button id="addTerm">Add term</button>
+      </div>
+      <textarea id="instructions" rows="2" placeholder="Optional instructions for the private AI, e.g. redact the account holder's name and sort code"></textarea>
+      <div class="row">
+        <button id="autodetect" class="primary">Auto-detect &amp; redact</button>
+        <button id="clearAuto">Clear detected</button>
+        <span class="hint">Or drag on the image to black out anything. Click a box to remove it.</span>
+      </div>
+    </div>
+
+    <div id="canvasWrap" class="canvas-wrap"></div>
+
+    <div class="row bottom">
+      <button id="download" class="primary">Download PNG</button>
+      <button id="copyImg">Copy image</button>
+      <span class="hint">Output is a flattened image, the covered pixels are gone, not hidden.</span>
+    </div>
+
+    <div id="verifyImg" class="verify hidden"></div>
+
+    <div id="reviewImg" class="review hidden"></div>
+  </section>
+
+  <!-- TEXT MODE -->
+  <section id="textMode" class="hidden">
+    <div class="panel">
+      <p class="lbl">Redact:</p>
+      <div id="chipsText" class="chips"></div>
+      <div class="row">
+        <input id="termText" type="text" placeholder="Add a specific word or number to redact" />
+        <button id="addTermText">Add term</button>
+      </div>
+      <textarea id="instrText" rows="2" placeholder="Optional instructions for the private AI"></textarea>
+      <div class="row">
+        <button id="detectText" class="primary">Detect &amp; redact</button>
+        <span class="hint">Tick or untick a category to update instantly.</span>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div><h4>Original</h4><pre id="origText"></pre></div>
+      <div><h4>Redacted</h4><pre id="redText"></pre></div>
+    </div>
+    <div class="row bottom"><button id="copyText" class="primary">Copy redacted text</button></div>
+
+    <div id="verifyText" class="verify hidden"></div>
+
+    <div id="reviewText" class="review hidden"></div>
+  </section>
+
+  <footer class="legal-foot">
+    <strong>Automated tool, always check the result.</strong> Redaction is done automatically and can miss things or cover too much. Review the output before you rely on it or share it. Provided "as is", without warranty, as an experimental tool. Processing is local; the optional AI detection runs privately in a Nillion sealed enclave.
+    <span class="legal-links"><a href="https://privateredact.app/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="https://privateredact.app/privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="https://github.com/iamrobertmoore/privateredact" target="_blank" rel="noopener">Source</a></span>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="core.js"></script>
+  <script src="redact.js"></script>
+</body>
+</html>

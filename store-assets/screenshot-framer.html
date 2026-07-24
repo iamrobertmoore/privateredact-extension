@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Private Redaction — store screenshot framer (1280×800)</title>
+<style>
+  :root { --bg:#080B14; --panel:#0E1626; --border:#1F2B45; --ink:#E8EDF7; --fog:#8A97B2; --accent:#6E97FF; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif; padding:24px; }
+  h1 { font-size:19px; margin:0 0 4px; }
+  p.sub { color:var(--fog); margin:0 0 18px; font-size:13.5px; }
+  .drop { border:1.5px dashed var(--border); border-radius:12px; padding:34px; text-align:center; color:var(--fog); background:var(--panel); cursor:pointer; }
+  .drop.drag { border-color:var(--accent); color:var(--ink); }
+  .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:16px 0; }
+  label.opt { color:var(--fog); font-size:13px; display:inline-flex; gap:6px; align-items:center; }
+  button { background:var(--accent); color:#061024; border:0; border-radius:8px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer; }
+  button.ghost { background:#16213a; color:var(--ink); border:1px solid var(--border); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; margin-top:18px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; }
+  .card canvas { width:100%; height:auto; border-radius:6px; display:block; background:#000; }
+  .card .row { display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:8px; }
+  .card .name { font-size:12.5px; color:var(--fog); }
+  select { background:#0A101E; color:var(--ink); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font:inherit; }
+</style>
+</head>
+<body>
+  <h1>Store screenshot framer</h1>
+  <p class="sub">Drop your extension screenshots below. Each is placed on a 1280×800 branded canvas (the exact Chrome Web Store size), scaled to fit with no distortion. Then download.</p>
+
+  <div id="drop" class="drop">Drag screenshots here, or click to choose files. Drop them in the order you want them numbered.</div>
+  <input id="file" type="file" accept="image/*" multiple hidden />
+
+  <div class="controls">
+    <label class="opt">Background
+      <select id="bg">
+        <option value="dark" selected>Dark (brand)</option>
+        <option value="glow">Dark + glow</option>
+        <option value="light">Light grey</option>
+      </select>
+    </label>
+    <label class="opt">Margin
+      <select id="margin">
+        <option value="36">Tight</option>
+        <option value="52" selected>Medium</option>
+        <option value="80">Roomy</option>
+      </select>
+    </label>
+    <button id="downloadAll" class="ghost" style="display:none">Download all</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+
+<script>
+const W = 1280, H = 800;
+const drop = document.getElementById('drop'), fileInput = document.getElementById('file');
+const grid = document.getElementById('grid'), bgSel = document.getElementById('bg'), marginSel = document.getElementById('margin');
+const dlAll = document.getElementById('downloadAll');
+let items = []; // {img, name}
+
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => addFiles(e.target.files));
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+bgSel.addEventListener('change', renderAll);
+marginSel.addEventListener('change', renderAll);
+dlAll.addEventListener('click', () => items.forEach((it, i) => download(it.canvas, i)));
+
+function addFiles(files) {
+  [...files].filter(f => f.type.startsWith('image/')).forEach(f => {
+    const img = new Image();
+    img.onload = () => { items.push({ img, name: f.name }); renderAll(); };
+    img.src = URL.createObjectURL(f);
+  });
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+}
+
+function frame(img) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  const mode = bgSel.value, M = +marginSel.value;
+
+  // background
+  if (mode === 'light') { ctx.fillStyle = '#EBEDF1'; ctx.fillRect(0,0,W,H); }
+  else {
+    const g = ctx.createLinearGradient(0,0,W,H); g.addColorStop(0,'#0B1120'); g.addColorStop(1,'#070A12');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    if (mode === 'glow') { const rg = ctx.createRadialGradient(W*0.18,0,0,W*0.18,0,W*0.7); rg.addColorStop(0,'rgba(110,151,255,0.18)'); rg.addColorStop(1,'rgba(110,151,255,0)'); ctx.fillStyle = rg; ctx.fillRect(0,0,W,H); }
+  }
+
+  // fit image within inner box
+  const maxW = W - 2*M, maxH = H - 2*M;
+  const s = Math.min(maxW / img.width, maxH / img.height);
+  const dw = Math.round(img.width * s), dh = Math.round(img.height * s);
+  const dx = Math.round((W - dw)/2), dy = Math.round((H - dh)/2), r = 14;
+
+  // shadow
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 42; ctx.shadowOffsetY = 20;
+  ctx.fillStyle = '#0b0f18'; roundRect(ctx, dx, dy, dw, dh, r); ctx.fill();
+  ctx.restore();
+
+  // clipped image
+  ctx.save(); roundRect(ctx, dx, dy, dw, dh, r); ctx.clip();
+  ctx.drawImage(img, dx, dy, dw, dh); ctx.restore();
+
+  // border
+  ctx.save(); roundRect(ctx, dx+0.5, dy+0.5, dw-1, dh-1, r);
+  ctx.strokeStyle = mode==='light' ? 'rgba(0,0,0,0.12)' : 'rgba(110,151,255,0.30)'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.restore();
+
+  return c;
+}
+
+function renderAll() {
+  grid.innerHTML = '';
+  items.forEach((it, i) => {
+    it.canvas = frame(it.img);
+    const card = document.createElement('div'); card.className = 'card';
+    const disp = it.canvas.cloneNode(); disp.getContext('2d').drawImage(it.canvas,0,0);
+    card.appendChild(disp);
+    const row = document.createElement('div'); row.className = 'row';
+    const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = 'screenshot-' + String(i+1).padStart(2,'0') + '.png · 1280×800';
+    const btn = document.createElement('button'); btn.textContent = 'Download'; btn.onclick = () => download(it.canvas, i);
+    row.append(nm, btn); card.appendChild(row); grid.appendChild(card);
+  });
+  dlAll.style.display = items.length > 1 ? '' : 'none';
+}
+
+function download(canvas, i) {
+  canvas.toBlob(b => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+    a.download = 'screenshot-' + String(i+1).padStart(2,'0') + '.png'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }, 'image/png');
+}
+</script>
+</body>
+</html>
